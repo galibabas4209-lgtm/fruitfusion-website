@@ -1,0 +1,15 @@
+{
+  "methods": [
+    "google"
+  ],
+  "headline": "Fruit Fusion Owner Login",
+  "subtitle": "Sign in with the authorized owner Google account to manage products and orders.",
+  "style": {
+    "mode": "light",
+    "accentColor": "#22C55E",
+    "backgroundColor": "#FFF7ED",
+    "panelColor": "#FFFFFF",
+    "textColor": "#172554",
+    "borderRadius": 16
+  }
+}

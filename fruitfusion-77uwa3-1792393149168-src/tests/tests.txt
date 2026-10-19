@@ -1,0 +1,45 @@
+# Tests
+
+## Test 1 - Keep the existing storefront and submit an order [sanity]
+Viewport: desktop
+Covers: existing Fruit Fusion storefront, Naira pricing, home delivery and pickup, WhatsApp checkout, persistent order creation, stock validation
+Description: Verifies the existing branded storefront remains in place and checkout records the order before continuing to WhatsApp.
+Steps:
+1. Open the Menu and add an available parfait
+2. Open the order drawer and select pickup or home delivery
+3. Complete delivery details if home delivery is selected
+4. Tap Checkout on WhatsApp
+Expected: The order is saved, stock is adjusted, and WhatsApp opens with the order summary.
+
+## Test 2 - Authorized owner manages products and photos
+Viewport: desktop
+Covers: Google-only sign-in, authorized owner email restriction, protected product create/read/update/delete, storage image upload, price and stock editing, public menu updates
+Description: Verifies the owner can securely manage the existing catalog without changing the public storefront design.
+Steps:
+1. Open Owner login and sign in as Ekunola99@gmail.com
+2. Add a product with a photo, Naira price and stock quantity
+3. Edit its price and stock, then refresh the dashboard
+4. Confirm the public menu reflects the saved product
+5. Delete the test product
+Expected: Only the authorized owner can manage products; changes persist and are reflected on the storefront.
+
+## Test 3 - Unauthorized access and invalid stock are blocked
+Viewport: desktop
+Covers: anonymous admin API denial, non-owner email denial, server-side stock validation, visible order submission error
+Description: Verifies private management routes reject unauthorized users and orders cannot exceed available stock.
+Steps:
+1. Open Owner login and attempt sign-in with a different Google account
+2. Confirm access is denied
+3. Attempt to submit an order for more units than are in stock
+Expected: Non-owner access is denied and invalid orders are rejected without an order confirmation.
+
+## Test 4 - Owner processes orders on mobile
+Viewport: mobile
+Covers: responsive admin dashboard, persistent order list, order status updates, mobile product editor
+Description: Verifies the owner can review saved orders and change their statuses on a phone.
+Steps:
+1. Sign in as Ekunola99@gmail.com
+2. Open Orders and select a saved order
+3. Change its status to Preparing
+4. Refresh the dashboard
+Expected: The order remains listed with the updated status and the dashboard fits a mobile viewport.
