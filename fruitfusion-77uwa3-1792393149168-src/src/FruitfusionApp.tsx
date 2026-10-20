@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react';
 import {motion,AnimatePresence} from 'framer-motion';
-import {api,auth} from '@appdeploy/client';
+import { supabase } from './lib/supabase';
 import {ShoppingBag,Plus,Minus,X,LogIn,LogOut,Upload,Pencil,Trash2,MapPin,MessageCircle,Star,ArrowRight,Sparkles,Clock,Instagram} from 'lucide-react';
 
 type P={id:string;name:string;category:string;price:number;description:string;image:string;imagePath?:string;available:boolean;featured?:boolean;stock:number};
@@ -14,15 +14,77 @@ const fade={hidden:{opacity:0,y:28},show:{opacity:1,y:0,transition:{duration:.55
 
 export default function App(){
  const[ps,setPs]=useState<P[]>(seed),[cart,setCart]=useState<P[]>([]),[toast,setToast]=useState(''),[drawer,setDrawer]=useState(false),[owner,setOwner]=useState<any>(null),[admin,setAdmin]=useState(false),[edit,setEdit]=useState<P|null>(null),[mobile,setMobile]=useState(false),[delivery,setDelivery]=useState<'pickup'|'home'>('pickup'),[deliveryDetails,setDeliveryDetails]=useState({name:'',phone:'',address:'',landmark:'',note:''});
- useEffect(()=>{api.get('/api/products').then(r=>r.data?.products?.length&&setPs(r.data.products)).catch(()=>{});auth.getUser().then(u=>{if(u?.email?.toLowerCase()==='ekunola99@gmail.com')setOwner(u)}).catch(()=>{})},[]);
+ useEffect(() => {
+  const loadProducts = async () => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('available', true)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Could not load products:', error.message);
+      return;
+    }
+
+    if (data?.length) {
+      setPs(
+        data
+          .filter((p) => Number(p.stock) > 0)
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            category: p.category,
+            price: Number(p.price),
+            description: p.description ?? '',
+            image: p.image_url?.startsWith('http')
+              ? p.image_url
+              : p.image_url || '/resources/product-1.jpeg',
+            available: p.available,
+            stock: Number(p.stock ?? 0),
+          }))
+      );
+    }
+  };
+
+  loadProducts();
+
+  const checkOwner = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (user?.email?.toLowerCase() === 'ekunola99@gmail.com') {
+      setOwner(user);
+    }
+  };
+
+  checkOwner();
+}, []);
  const add=(p:P)=>{const already=cart.filter(x=>x.id===p.id).length;if((p.stock??10)<=already){setToast(p.name+' is out of stock or at its available limit.');setTimeout(()=>setToast(''),2200);return}setCart(c=>[...c,p]);setToast(p.name+' added to your order');setTimeout(()=>setToast(''),2200)};
  const total=cart.reduce((s,p)=>s+p.price,0);
  const deliveryFee=delivery==='home'?1000:0;
  const grandTotal=total+deliveryFee;
  const deliveryReady=delivery==='pickup'||(deliveryDetails.name.trim()!==''&&deliveryDetails.phone.trim()!==''&&deliveryDetails.address.trim()!=='');
  const whatsappText='Hi Fruit Fusion, I would like to order: '+cart.map(p=>p.name).join(', ')+' | Subtotal: '+money(total)+' | Delivery: '+(delivery==='home'?money(deliveryFee):'Pickup')+' | Total: '+money(grandTotal)+(delivery==='home'?' | Customer: '+deliveryDetails.name+' | Phone: '+deliveryDetails.phone+' | Address: '+deliveryDetails.address+' | Landmark: '+deliveryDetails.landmark+' | Note: '+deliveryDetails.note:'');
- const login=async()=>{try{const r=await auth.signIn({scope:'openid email profile offline_access'});if(r.user.email?.toLowerCase()!=='ekunola99@gmail.com'){await auth.signOut();setOwner(null);setToast('Access denied. Please use Ekunola99@gmail.com.');setTimeout(()=>setToast(''),3000);return}setOwner(r.user);setAdmin(true)}catch{setToast('Sign-in was cancelled or failed.');setTimeout(()=>setToast(''),2500)}};
- const go=(id:string)=>{setMobile(false);document.getElementById(id)?.scrollIntoView({behavior:'smooth'})};
+ 
+const login = async () => {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin,
+    },
+  });
+
+  if (error) {
+    setToast('Sign-in failed: ' + error.message);
+    setTimeout(() => setToast(''), 3000);
+  }
+};
+
+const go = (id: string) => {
+  setMobile(false);
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+};
+
  return <div className="min-h-screen overflow-x-hidden bg-[#FFFDF9] text-[#18221B]">
   <div className="fixed inset-x-0 top-0 z-50">
    <div className="bg-[#18221B] px-4 py-2 text-center text-[11px] font-black uppercase tracking-[.2em] text-yellow-300">Freshly layered in Lagos • Order on WhatsApp</div>
