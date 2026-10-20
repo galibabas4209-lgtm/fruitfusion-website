@@ -312,7 +312,9 @@ const upload = async (x: File) => {
     setNotice('Photo uploaded. Save the product to keep it.');
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Unknown error';
+  error && typeof error === 'object' && 'message' in error
+    ? String(error.message)
+    : String(error ?? 'Unknown error');
     setNotice('Image upload failed: ' + message);
   } finally {
     setBusy(false);
