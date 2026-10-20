@@ -163,7 +163,45 @@ function Admin({owner,products,setProducts,edit,setEdit,close,logout}:{owner:any
  const[orders,setOrders]=useState<any[]>([]);
  const[notice,setNotice]=useState('');
  useEffect(()=>setF(edit||blank()),[edit]);
- async function refreshOrders(){const r=await api.get('/api/admin/orders');setOrders(r.data.orders||[])}
+ 
+async function refreshOrders() {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*, order_items(*)')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  setOrders(
+    (data || []).map((o) => ({
+      id: o.id,
+      createdAt: o.created_at,
+      delivery:
+        o.fulfillment_method === 'delivery' ? 'home' : 'pickup',
+      total: Number(o.total_amount),
+      deliveryDetails: {
+        name: o.customer_name,
+        phone: o.customer_phone,
+        address: o.delivery_address || '',
+      },
+      items: (o.order_items || []).map((item) => ({
+        name: item.product_name,
+        qty: item.quantity,
+        price: Number(item.unit_price),
+        subtotal: Number(item.subtotal),
+      })),
+      status: ({
+        pending: 'New',
+        confirmed: 'Confirmed',
+        preparing: 'Preparing',
+        out_for_delivery: 'Ready for delivery',
+        completed: 'Completed',
+        cancelled: 'Cancelled',
+      } as Record<string, string>)[o.status] || o.status,
+    }))
+  );
+}
+
  useEffect(()=>{api.get('/api/admin/products').then(r=>setProducts(r.data.products||[])).catch(()=>setNotice('Could not load products. Please refresh.'));refreshOrders().catch(()=>setNotice('Could not load orders. Please refresh.'))},[]);
  const upload=async(x:File)=>{if(!x.type.startsWith('image/')){setNotice('Please choose an image file.');return}const reader=new FileReader();reader.onload=async()=>{setBusy(true);try{const raw=String(reader.result);const q=await api.post('/api/uploads',{filename:x.name,content:raw.split(',')[1],contentType:x.type});setF(old=>({...old,image:q.data.url,imagePath:q.data.path}));setNotice('Photo uploaded. Save the product to keep it.')}catch{setNotice('Image upload failed. Please try again.')}finally{setBusy(false)}};reader.readAsDataURL(x)};
  const save=async(e:React.FormEvent)=>{e.preventDefault();if(!f.name.trim()||f.price<0||f.stock<0){setNotice('Enter a name, valid price and stock quantity.');return}setBusy(true);setNotice('');try{const payload={...f,price:Number(f.price),stock:Number(f.stock)};const r=f.id?await api.put('/api/products/'+f.id,payload):await api.post('/api/products',payload);const p=r.data.product;setProducts(f.id?products.map(x=>x.id===p.id?p:x):[...products,p]);setEdit(null);setF(blank());setNotice('Product saved successfully.')}catch{setNotice('Could not save the product. Please try again.')}finally{setBusy(false)}};
