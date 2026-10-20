@@ -10,12 +10,14 @@ const seed:P[]=[
 {id:'3',name:'Fruit Fusion Yoghurt',category:'Yoghurt',price:3000,description:'Fresh yoghurt cups prepared with Fruit Fusion toppings.',image:'/resources/product-3.jpeg',available:true}
 ];
 const money=(n:number)=>'₦'+n.toLocaleString('en-NG');
+const OWNER_EMAIL='ekunola99@gmail.com';
+const ownerRoute=/^\/(owner|admin)\/?$/i.test(window.location.pathname);
 const fade={hidden:{opacity:0,y:28},show:{opacity:1,y:0,transition:{duration:.55,ease:'easeOut'}}};
 
 export default function App(){
- const[ps,setPs]=useState<P[]>(seed),[cart,setCart]=useState<P[]>([]),[toast,setToast]=useState(''),[drawer,setDrawer]=useState(false),[owner,setOwner]=useState<any>(null),[admin,setAdmin]=useState(false),[edit,setEdit]=useState<P|null>(null),[mobile,setMobile]=useState(false),[delivery,setDelivery]=useState<'pickup'|'home'>('pickup'),[deliveryDetails,setDeliveryDetails]=useState({name:'',phone:'',address:'',landmark:'',note:''});
+ const[ps,setPs]=useState<P[]>(seed),[cart,setCart]=useState<P[]>([]),[toast,setToast]=useState(''),[drawer,setDrawer]=useState(false),[owner,setOwner]=useState<any>(null),[authChecked,setAuthChecked]=useState(false),[admin,setAdmin]=useState(false),[edit,setEdit]=useState<P|null>(null),[mobile,setMobile]=useState(false),[delivery,setDelivery]=useState<'pickup'|'home'>('pickup'),[deliveryDetails,setDeliveryDetails]=useState({name:'',phone:'',address:'',landmark:'',note:''});
  useEffect(() => {
-  if (!supabaseConfigured) return;
+  if (!supabaseConfigured) { setAuthChecked(true); return; }
 
   const loadProducts = async () => {
     const { data, error } = await supabase
@@ -54,9 +56,11 @@ export default function App(){
   const checkOwner = async () => {
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (user?.email?.toLowerCase() === 'ekunola99@gmail.com') {
+    if (user?.email?.toLowerCase() === OWNER_EMAIL) {
       setOwner(user);
+      if (ownerRoute) setAdmin(true);
     }
+    setAuthChecked(true);
   };
 
   checkOwner();
@@ -68,30 +72,6 @@ export default function App(){
  const deliveryReady=delivery==='pickup'||(deliveryDetails.name.trim()!==''&&deliveryDetails.phone.trim()!==''&&deliveryDetails.address.trim()!=='');
  const whatsappText='Hi Fruit Fusion, I would like to order: '+cart.map(p=>p.name).join(', ')+' | Subtotal: '+money(total)+' | Delivery: '+(delivery==='home'?money(deliveryFee):'Pickup')+' | Total: '+money(grandTotal)+(delivery==='home'?' | Customer: '+deliveryDetails.name+' | Phone: '+deliveryDetails.phone+' | Address: '+deliveryDetails.address+' | Landmark: '+deliveryDetails.landmark+' | Note: '+deliveryDetails.note:'');
  
-
-const login = async () => {
-  if (!supabaseConfigured) {
-    setToast('Owner login is not available yet.');
-    setTimeout(() => setToast(''), 3000);
-    return;
-  }
-
-  const email = window.prompt('Enter your owner email:');
-  if (!email) return;
-
-  const password = window.prompt('Enter your password:');
-  if (!password) return;
-
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    setToast('Sign-in failed: ' + error.message);
-    setTimeout(() => setToast(''), 3000);
-  }
-};
 
 const go = (id: string) => {
   setMobile(false);
@@ -176,7 +156,7 @@ try {
 setTimeout(() => setToast(''), 2500);
 }} className="rounded-[2rem] bg-white p-6 shadow-2xl sm:p-8"><h3 className="text-2xl font-black">Place an enquiry</h3><p className="mt-1 text-sm text-slate-500">Tell us what you would like.</p><div className="mt-5 grid gap-3"><input required name="name" placeholder="Your name" className="rounded-2xl border border-slate-200 p-4 outline-none focus:border-green-500"/><input required name="phone" placeholder="Phone number" className="rounded-2xl border border-slate-200 p-4 outline-none focus:border-green-500"/><textarea required name="message" placeholder="What would you like to order?" rows={4} className="resize-none rounded-2xl border border-slate-200 p-4 outline-none focus:border-green-500"/><button className="rounded-2xl bg-orange-500 py-4 font-black text-white shadow-lg shadow-orange-500/20 hover:bg-orange-600">Send request</button></div></form></div></section>
 
-  <footer className="bg-[#18221B] px-4 py-12 text-white sm:px-6 lg:px-8"><div className="mx-auto grid max-w-7xl gap-10 sm:grid-cols-2 lg:grid-cols-4"><div className="sm:col-span-2"><img src="/resources/logo.jpeg" alt="Fruit Fusion" className="h-16 w-36 rounded-xl bg-white object-contain p-1"/><p className="mt-4 max-w-sm text-slate-400">Fresh yoghurt & parfaits made with love in Abule Egba, Lagos.</p></div><div><h4 className="font-black">Find us</h4><div className="mt-4 grid gap-3 text-sm text-slate-400"><span className="flex gap-2"><MapPin size={16}/>21 Ifelodun St, off Sunny Balogun, Abule Egba, Lagos 100001</span><a href="tel:+2348050639359" className="flex gap-2"><MessageCircle size={16}/>0805 063 9359</a><span className="flex gap-2"><Clock size={16}/>Open · Closes 7:30 PM</span></div></div><div><h4 className="font-black">Quick links</h4><div className="mt-4 grid gap-3 text-sm text-slate-400"><button className="text-left" onClick={()=>go('menu')}>Menu</button><button className="text-left" onClick={()=>go('about')}>Our story</button><a href="https://www.instagram.com/" className="flex gap-2"><Instagram size={16}/>Instagram</a></div></div></div><div className="mx-auto mt-10 flex max-w-7xl flex-col gap-4 border-t border-white/10 pt-6 text-xs text-slate-500 sm:flex-row sm:justify-between"><span>© 2026 Fruit Fusion. All rights reserved.</span><button onClick={()=>owner?setAdmin(true):login()} className="flex items-center gap-2 self-start font-bold text-slate-400 hover:text-white">{owner?<Pencil size={14}/>:<LogIn size={14}/>} {owner?'Owner dashboard':'Owner login'}</button></div></footer>
+  <footer className="bg-[#18221B] px-4 py-12 text-white sm:px-6 lg:px-8"><div className="mx-auto grid max-w-7xl gap-10 sm:grid-cols-2 lg:grid-cols-4"><div className="sm:col-span-2"><img src="/resources/logo.jpeg" alt="Fruit Fusion" className="h-16 w-36 rounded-xl bg-white object-contain p-1"/><p className="mt-4 max-w-sm text-slate-400">Fresh yoghurt & parfaits made with love in Abule Egba, Lagos.</p></div><div><h4 className="font-black">Find us</h4><div className="mt-4 grid gap-3 text-sm text-slate-400"><span className="flex gap-2"><MapPin size={16}/>21 Ifelodun St, off Sunny Balogun, Abule Egba, Lagos 100001</span><a href="tel:+2348050639359" className="flex gap-2"><MessageCircle size={16}/>0805 063 9359</a><span className="flex gap-2"><Clock size={16}/>Open · Closes 7:30 PM</span></div></div><div><h4 className="font-black">Quick links</h4><div className="mt-4 grid gap-3 text-sm text-slate-400"><button className="text-left" onClick={()=>go('menu')}>Menu</button><button className="text-left" onClick={()=>go('about')}>Our story</button><a href="https://www.instagram.com/" className="flex gap-2"><Instagram size={16}/>Instagram</a></div></div></div><div className="mx-auto mt-10 flex max-w-7xl flex-col gap-4 border-t border-white/10 pt-6 text-xs text-slate-500 sm:flex-row sm:justify-between"><span>© 2026 Fruit Fusion. All rights reserved.</span></div></footer>
 
   <AnimatePresence>{toast&&<motion.div initial={{opacity:0,y:20,scale:.95}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:20}} className="fixed bottom-5 left-1/2 z-[90] -translate-x-1/2 rounded-full bg-[#18221B] px-5 py-3 text-sm font-black text-white shadow-2xl"><span className="mr-2 text-green-400">✓</span>{toast}</motion.div>}</AnimatePresence>
   <AnimatePresence>{drawer&&<><motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={()=>setDrawer(false)} className="fixed inset-0 z-[60] bg-black/50"/><motion.aside initial={{x:'100%'}} animate={{x:0}} exit={{x:'100%'}} transition={{type:'spring',damping:28}} className="fixed right-0 top-0 z-[61] flex h-full w-full max-w-md flex-col bg-white p-6 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-3xl font-black">Your order</h2><button onClick={()=>setDrawer(false)} className="rounded-full border p-2"><X size={18}/></button></div><div className="mt-6 flex-1 overflow-auto">{cart.length===0?<div className="py-24 text-center text-slate-400"><ShoppingBag className="mx-auto" size={40}/><p className="mt-4 font-bold">Your order is empty.</p><button onClick={()=>{setDrawer(false);go('menu')}} className="mt-5 rounded-full bg-green-500 px-5 py-3 font-black text-white">Browse menu</button></div>:<div className="grid gap-3">{cart.map((p,i)=><div key={i} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3"><img src={p.image} alt="" className="h-16 w-16 rounded-xl object-cover"/><div className="flex-1"><b>{p.name}</b><p className="text-sm text-slate-500">{money(p.price)}</p></div><button onClick={()=>setCart(c=>c.filter((_,j)=>j!==i))} className="rounded-full border p-2"><Minus size={14}/></button></div>)}</div>}</div>{cart.length>0&&<div className="border-t pt-5"><h3 className="mb-3 text-lg font-black">How would you like to receive your order?</h3><div className="grid grid-cols-2 gap-2"><button type="button" onClick={()=>setDelivery('pickup')} className={'rounded-xl border-2 p-3 text-sm font-black '+(delivery==='pickup'?'border-green-500 bg-green-50 text-green-700':'border-slate-200')}>🏪 Pickup</button><button type="button" onClick={()=>setDelivery('home')} className={'rounded-xl border-2 p-3 text-sm font-black '+(delivery==='home'?'border-green-500 bg-green-50 text-green-700':'border-slate-200')}>🛵 Home delivery</button></div>{delivery==='home'&&<div className="mt-4 grid gap-2"><p className="text-sm font-bold text-slate-500">Delivery fee: {money(deliveryFee)}</p><input value={deliveryDetails.name} onChange={e=>setDeliveryDetails({...deliveryDetails,name:e.target.value})} required placeholder="Full name" className="rounded-xl border p-3"/><input value={deliveryDetails.phone} onChange={e=>setDeliveryDetails({...deliveryDetails,phone:e.target.value})} required placeholder="Phone number" className="rounded-xl border p-3"/><textarea value={deliveryDetails.address} onChange={e=>setDeliveryDetails({...deliveryDetails,address:e.target.value})} required placeholder="Full delivery address" rows={2} className="rounded-xl border p-3"/><input value={deliveryDetails.landmark} onChange={e=>setDeliveryDetails({...deliveryDetails,landmark:e.target.value})} placeholder="Nearest landmark (optional)" className="rounded-xl border p-3"/><textarea value={deliveryDetails.note} onChange={e=>setDeliveryDetails({...deliveryDetails,note:e.target.value})} placeholder="Delivery note (optional)" rows={2} className="rounded-xl border p-3"/></div>}<div className="my-4 flex justify-between text-lg font-black"><span>Total</span><span className="text-orange-500">{money(grandTotal)}</span></div><a href="#" onClick={async e=>{e.preventDefault();if(!deliveryReady){setToast('Please complete your delivery name, phone and address.');setTimeout(()=>setToast(''),2500);return}try{const grouped=cart.reduce((a,p)=>{const found=a.find(x=>x.id===p.id);if(found)found.qty+=1;else a.push({id:p.id,qty:1});return a},[] as Array<{id:string;qty:number}>);
@@ -196,8 +176,24 @@ const { data: orderId, error } = await supabase.rpc('create_order', {
 });
 
 if (error) throw error;setDrawer(false);window.location.href='https://wa.me/2348050639359?text='+encodeURIComponent(whatsappText)}catch{setToast('Could not save your order. Please try again.');setTimeout(()=>setToast(''),3000)}}} className={'block rounded-2xl py-4 text-center font-black text-white '+(deliveryReady?'bg-green-500':'bg-slate-300')}>Checkout on WhatsApp</a></div>}</motion.aside></>}</AnimatePresence>
-  {admin&&<Admin owner={owner} products={ps} setProducts={setPs} edit={edit} setEdit={setEdit} close={()=>setAdmin(false)} logout={async()=>{await supabase.auth.signOut();setOwner(null);setAdmin(false)}}/>}
+  {ownerRoute&&authChecked&&!owner&&<OwnerLogin onLogin={u=>{setOwner(u);setAdmin(true)}}/>}
+  {admin&&<Admin owner={owner} products={ps} setProducts={setPs} edit={edit} setEdit={setEdit} close={()=>{setAdmin(false);if(ownerRoute)window.location.assign('/')}} logout={async()=>{await supabase.auth.signOut();setOwner(null);setAdmin(false);window.location.assign('/')}}/>}
  </div>
+}
+
+function OwnerLogin({onLogin}:{onLogin:(user:any)=>void}){
+ const[email,setEmail]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const submit=async(e:React.FormEvent)=>{
+  e.preventDefault();
+  if(!supabaseConfigured){setError('Owner login is not available yet.');return}
+  setBusy(true);setError('');
+  const{data,error}=await supabase.auth.signInWithPassword({email:email.trim(),password});
+  setBusy(false);
+  if(error){setError('Sign-in failed: '+error.message);return}
+  if(data.user?.email?.toLowerCase()!==OWNER_EMAIL){await supabase.auth.signOut();setError('This account does not have owner access.');return}
+  onLogin(data.user);
+ };
+ return <div className="fixed inset-0 z-[100] grid place-items-center overflow-auto bg-[#18221B] p-4"><form onSubmit={submit} className="grid w-full max-w-sm gap-4 rounded-[2rem] bg-white p-7 shadow-2xl"><img src="/resources/logo.jpeg" alt="Fruit Fusion" className="h-14 w-32 object-contain"/><div><p className="text-xs font-black uppercase tracking-widest text-green-600">Private owner area</p><h2 className="mt-1 text-2xl font-black">Owner sign in</h2></div><label className="grid gap-1 text-sm font-bold">Email<input required type="email" autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)} className="rounded-xl border p-3 font-normal"/></label><label className="grid gap-1 text-sm font-bold">Password<input required type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} className="rounded-xl border p-3 font-normal"/></label>{error&&<p className="rounded-xl bg-red-50 p-3 text-sm font-bold text-red-600">{error}</p>}<button disabled={busy} className="flex items-center justify-center gap-2 rounded-xl bg-green-500 py-3.5 font-black text-white disabled:opacity-50"><LogIn size={16}/>{busy?'Signing in…':'Sign in'}</button><a href="/" className="text-center text-sm font-bold text-slate-500 hover:text-slate-800">← Back to the shop</a></form></div>
 }
 
 function Admin({owner,products,setProducts,edit,setEdit,close,logout}:{owner:any;products:P[];setProducts:(p:P[])=>void;edit:P|null;setEdit:(p:P|null)=>void;close:()=>void;logout:()=>void}){
