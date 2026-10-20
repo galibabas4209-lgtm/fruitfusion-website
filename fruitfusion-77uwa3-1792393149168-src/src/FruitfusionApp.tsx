@@ -239,7 +239,49 @@ useEffect(() => {
   );
 }, []);
 
- const upload=async(x:File)=>{if(!x.type.startsWith('image/')){setNotice('Please choose an image file.');return}const reader=new FileReader();reader.onload=async()=>{setBusy(true);try{const raw=String(reader.result);const q=await api.post('/api/uploads',{filename:x.name,content:raw.split(',')[1],contentType:x.type});setF(old=>({...old,image:q.data.url,imagePath:q.data.path}));setNotice('Photo uploaded. Save the product to keep it.')}catch{setNotice('Image upload failed. Please try again.')}finally{setBusy(false)}};reader.readAsDataURL(x)};
+ 
+const upload = async (x: File) => {
+  if (!x.type.startsWith('image/')) {
+    setNotice('Please choose an image file.');
+    return;
+  }
+
+  setBusy(true);
+  setNotice('');
+
+  try {
+    const safeName = x.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+    const path = `${crypto.randomUUID()}-${safeName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('product-images')
+      .upload(path, x, {
+        upsert: false,
+        contentType: x.type,
+      });
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from('product-images')
+      .getPublicUrl(path);
+
+    setF((old) => ({
+      ...old,
+      image: data.publicUrl,
+      imagePath: path,
+    }));
+
+    setNotice('Photo uploaded. Save the product to keep it.');
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Unknown error';
+    setNotice('Image upload failed: ' + message);
+  } finally {
+    setBusy(false);
+  }
+};
+
  
 const save = async (e: React.FormEvent) => {
   e.preventDefault();
