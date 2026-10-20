@@ -314,7 +314,33 @@ const save = async (e: React.FormEvent) => {
   }
 };
 
- const remove=async(p:P)=>{if(!confirm('Delete '+p.name+'? This cannot be undone.'))return;try{await api.delete('/api/products/'+p.id);setProducts(products.filter(x=>x.id!==p.id));if(edit?.id===p.id){setEdit(null);setF(blank())}setNotice('Product deleted.')}catch{setNotice('Could not delete product.')}};
+ 
+const remove = async (p: P) => {
+  if (!confirm('Delete ' + p.name + '? This cannot be undone.')) return;
+
+  try {
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', p.id);
+
+    if (error) throw error;
+
+    setProducts((current) => current.filter((x) => x.id !== p.id));
+
+    if (edit?.id === p.id) {
+      setEdit(null);
+      setF(blank());
+    }
+
+    setNotice('Product deleted.');
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Unknown error';
+    setNotice('Could not delete product: ' + message);
+  }
+};
+
  const status=async(id:string,value:string)=>{try{await api.put('/api/admin/orders/'+id,{status:value});await refreshOrders();setNotice('Order status updated.')}catch{setNotice('Could not update order status.')}};
  const startNew=()=>{setEdit(null);setF(blank())};
  return <div className="fixed inset-0 z-[100] overflow-auto bg-black/70 p-3 sm:p-5"><div className="mx-auto my-3 max-w-6xl rounded-[2rem] bg-white p-5 shadow-2xl sm:p-8"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-green-600">Private owner area</p><h2 className="mt-1 text-3xl font-black">Fruit Fusion dashboard</h2><p className="mt-1 text-sm text-slate-500">{owner?.email}</p></div><div className="flex gap-2"><button onClick={logout} className="flex items-center gap-2 rounded-full border px-4 py-3 text-sm font-bold"><LogOut size={16}/> Sign out</button><button onClick={close} className="rounded-full border p-3" aria-label="Close dashboard"><X size={16}/></button></div></div>
