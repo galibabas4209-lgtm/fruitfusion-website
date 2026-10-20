@@ -66,12 +66,17 @@ export default function App(){
  const deliveryReady=delivery==='pickup'||(deliveryDetails.name.trim()!==''&&deliveryDetails.phone.trim()!==''&&deliveryDetails.address.trim()!=='');
  const whatsappText='Hi Fruit Fusion, I would like to order: '+cart.map(p=>p.name).join(', ')+' | Subtotal: '+money(total)+' | Delivery: '+(delivery==='home'?money(deliveryFee):'Pickup')+' | Total: '+money(grandTotal)+(delivery==='home'?' | Customer: '+deliveryDetails.name+' | Phone: '+deliveryDetails.phone+' | Address: '+deliveryDetails.address+' | Landmark: '+deliveryDetails.landmark+' | Note: '+deliveryDetails.note:'');
  
+
 const login = async () => {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: window.location.origin,
-    },
+  const email = window.prompt('Enter your owner email:');
+  if (!email) return;
+
+  const password = window.prompt('Enter your password:');
+  if (!password) return;
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
   });
 
   if (error) {
@@ -84,6 +89,7 @@ const go = (id: string) => {
   setMobile(false);
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 };
+
 
  return <div className="min-h-screen overflow-x-hidden bg-[#FFFDF9] text-[#18221B]">
   <div className="fixed inset-x-0 top-0 z-50">
