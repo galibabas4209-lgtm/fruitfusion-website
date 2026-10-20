@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react';
 import {motion,AnimatePresence} from 'framer-motion';
-import { supabase } from './lib/supabase';
+import { supabase, supabaseConfigured } from './lib/supabase';
 import {ShoppingBag,Plus,Minus,X,LogIn,LogOut,Upload,Pencil,Trash2,MapPin,MessageCircle,Star,ArrowRight,Sparkles,Clock,Instagram} from 'lucide-react';
 
 type P={id:string;name:string;category:string;price:number;description:string;image:string;imagePath?:string;available:boolean;featured?:boolean;stock:number};
@@ -15,6 +15,8 @@ const fade={hidden:{opacity:0,y:28},show:{opacity:1,y:0,transition:{duration:.55
 export default function App(){
  const[ps,setPs]=useState<P[]>(seed),[cart,setCart]=useState<P[]>([]),[toast,setToast]=useState(''),[drawer,setDrawer]=useState(false),[owner,setOwner]=useState<any>(null),[admin,setAdmin]=useState(false),[edit,setEdit]=useState<P|null>(null),[mobile,setMobile]=useState(false),[delivery,setDelivery]=useState<'pickup'|'home'>('pickup'),[deliveryDetails,setDeliveryDetails]=useState({name:'',phone:'',address:'',landmark:'',note:''});
  useEffect(() => {
+  if (!supabaseConfigured) return;
+
   const loadProducts = async () => {
     const { data, error } = await supabase
       .from('products')
@@ -68,6 +70,12 @@ export default function App(){
  
 
 const login = async () => {
+  if (!supabaseConfigured) {
+    setToast('Owner login is not available yet.');
+    setTimeout(() => setToast(''), 3000);
+    return;
+  }
+
   const email = window.prompt('Enter your owner email:');
   if (!email) return;
 
@@ -166,7 +174,7 @@ try {
 }
 
 setTimeout(() => setToast(''), 2500);
- className="rounded-[2rem] bg-white p-6 shadow-2xl sm:p-8"><h3 className="text-2xl font-black">Place an enquiry</h3><p className="mt-1 text-sm text-slate-500">Tell us what you would like.</p><div className="mt-5 grid gap-3"><input required name="name" placeholder="Your name" className="rounded-2xl border border-slate-200 p-4 outline-none focus:border-green-500"/><input required name="phone" placeholder="Phone number" className="rounded-2xl border border-slate-200 p-4 outline-none focus:border-green-500"/><textarea required name="message" placeholder="What would you like to order?" rows={4} className="resize-none rounded-2xl border border-slate-200 p-4 outline-none focus:border-green-500"/><button className="rounded-2xl bg-orange-500 py-4 font-black text-white shadow-lg shadow-orange-500/20 hover:bg-orange-600">Send request</button></div></form></div></section>
+}} className="rounded-[2rem] bg-white p-6 shadow-2xl sm:p-8"><h3 className="text-2xl font-black">Place an enquiry</h3><p className="mt-1 text-sm text-slate-500">Tell us what you would like.</p><div className="mt-5 grid gap-3"><input required name="name" placeholder="Your name" className="rounded-2xl border border-slate-200 p-4 outline-none focus:border-green-500"/><input required name="phone" placeholder="Phone number" className="rounded-2xl border border-slate-200 p-4 outline-none focus:border-green-500"/><textarea required name="message" placeholder="What would you like to order?" rows={4} className="resize-none rounded-2xl border border-slate-200 p-4 outline-none focus:border-green-500"/><button className="rounded-2xl bg-orange-500 py-4 font-black text-white shadow-lg shadow-orange-500/20 hover:bg-orange-600">Send request</button></div></form></div></section>
 
   <footer className="bg-[#18221B] px-4 py-12 text-white sm:px-6 lg:px-8"><div className="mx-auto grid max-w-7xl gap-10 sm:grid-cols-2 lg:grid-cols-4"><div className="sm:col-span-2"><img src="/resources/logo.jpeg" alt="Fruit Fusion" className="h-16 w-36 rounded-xl bg-white object-contain p-1"/><p className="mt-4 max-w-sm text-slate-400">Fresh yoghurt & parfaits made with love in Abule Egba, Lagos.</p></div><div><h4 className="font-black">Find us</h4><div className="mt-4 grid gap-3 text-sm text-slate-400"><span className="flex gap-2"><MapPin size={16}/>21 Ifelodun St, off Sunny Balogun, Abule Egba, Lagos 100001</span><a href="tel:+2348050639359" className="flex gap-2"><MessageCircle size={16}/>0805 063 9359</a><span className="flex gap-2"><Clock size={16}/>Open · Closes 7:30 PM</span></div></div><div><h4 className="font-black">Quick links</h4><div className="mt-4 grid gap-3 text-sm text-slate-400"><button className="text-left" onClick={()=>go('menu')}>Menu</button><button className="text-left" onClick={()=>go('about')}>Our story</button><a href="https://www.instagram.com/" className="flex gap-2"><Instagram size={16}/>Instagram</a></div></div></div><div className="mx-auto mt-10 flex max-w-7xl flex-col gap-4 border-t border-white/10 pt-6 text-xs text-slate-500 sm:flex-row sm:justify-between"><span>© 2026 Fruit Fusion. All rights reserved.</span><button onClick={()=>owner?setAdmin(true):login()} className="flex items-center gap-2 self-start font-bold text-slate-400 hover:text-white">{owner?<Pencil size={14}/>:<LogIn size={14}/>} {owner?'Owner dashboard':'Owner login'}</button></div></footer>
 
@@ -180,7 +188,7 @@ const { data: orderId, error } = await supabase.rpc('create_order', {
   p_delivery_address: delivery === 'home'
     ? String(deliveryDetails.address || '').trim()
     : null,
-  p_delivery_notes: deliveryDetails.notes || null,
+  p_delivery_notes: deliveryDetails.note || null,
   p_items: grouped.map((item) => ({
     product_id: item.id,
     quantity: item.qty,
@@ -188,7 +196,7 @@ const { data: orderId, error } = await supabase.rpc('create_order', {
 });
 
 if (error) throw error;setDrawer(false);window.location.href='https://wa.me/2348050639359?text='+encodeURIComponent(whatsappText)}catch{setToast('Could not save your order. Please try again.');setTimeout(()=>setToast(''),3000)}}} className={'block rounded-2xl py-4 text-center font-black text-white '+(deliveryReady?'bg-green-500':'bg-slate-300')}>Checkout on WhatsApp</a></div>}</motion.aside></>}</AnimatePresence>
-  {admin&&<Admin owner={owner} products={ps} setProducts={setPs} edit={edit} setEdit={setEdit} close={()=>setAdmin(false)} logout={async()=>{await auth.signOut();setOwner(null);setAdmin(false)}}/>}
+  {admin&&<Admin owner={owner} products={ps} setProducts={setPs} edit={edit} setEdit={setEdit} close={()=>setAdmin(false)} logout={async()=>{await supabase.auth.signOut();setOwner(null);setAdmin(false)}}/>}
  </div>
 }
 

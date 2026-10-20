@@ -1,0 +1,9 @@
+[build]
+  base = "fruitfusion-77uwa3-1792393149168-src"
+  command = "npm install --include=dev && npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
