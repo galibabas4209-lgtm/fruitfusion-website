@@ -417,8 +417,11 @@ const remove = async (p: P) => {
     const message =
       error instanceof Error ? error.message : 'Unknown error';
     setNotice('Could not delete product: ' + message);
+  } finally {
+    setBusy(false);
   }
 };
+
 
  const status=async(id:string,value:string)=>{try{await api.put('/api/admin/orders/'+id,{status:value});await refreshOrders();setNotice('Order status updated.')}catch{setNotice('Could not update order status.')}};
  const startNew=()=>{setEdit(null);setF(blank())};
