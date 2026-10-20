@@ -202,7 +202,43 @@ async function refreshOrders() {
   );
 }
 
- useEffect(()=>{api.get('/api/admin/products').then(r=>setProducts(r.data.products||[])).catch(()=>setNotice('Could not load products. Please refresh.'));refreshOrders().catch(()=>setNotice('Could not load orders. Please refresh.'))},[]);
+ 
+useEffect(() => {
+  async function loadProducts() {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      setNotice('Could not load products: ' + error.message);
+      return;
+    }
+
+    setProducts(
+      (data || []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        category: p.category || 'Parfait',
+        price: Number(p.price),
+        description: p.description || '',
+        image: p.image_url || '',
+        available: p.available,
+        featured: p.featured ?? false,
+        stock: p.stock ?? 0,
+      }))
+    );
+  }
+
+  loadProducts().catch(() =>
+    setNotice('Could not load products. Please refresh.')
+  );
+
+  refreshOrders().catch(() =>
+    setNotice('Could not load orders. Please refresh.')
+  );
+}, []);
+
  const upload=async(x:File)=>{if(!x.type.startsWith('image/')){setNotice('Please choose an image file.');return}const reader=new FileReader();reader.onload=async()=>{setBusy(true);try{const raw=String(reader.result);const q=await api.post('/api/uploads',{filename:x.name,content:raw.split(',')[1],contentType:x.type});setF(old=>({...old,image:q.data.url,imagePath:q.data.path}));setNotice('Photo uploaded. Save the product to keep it.')}catch{setNotice('Image upload failed. Please try again.')}finally{setBusy(false)}};reader.readAsDataURL(x)};
  const save=async(e:React.FormEvent)=>{e.preventDefault();if(!f.name.trim()||f.price<0||f.stock<0){setNotice('Enter a name, valid price and stock quantity.');return}setBusy(true);setNotice('');try{const payload={...f,price:Number(f.price),stock:Number(f.stock)};const r=f.id?await api.put('/api/products/'+f.id,payload):await api.post('/api/products',payload);const p=r.data.product;setProducts(f.id?products.map(x=>x.id===p.id?p:x):[...products,p]);setEdit(null);setF(blank());setNotice('Product saved successfully.')}catch{setNotice('Could not save the product. Please try again.')}finally{setBusy(false)}};
  const remove=async(p:P)=>{if(!confirm('Delete '+p.name+'? This cannot be undone.'))return;try{await api.delete('/api/products/'+p.id);setProducts(products.filter(x=>x.id!==p.id));if(edit?.id===p.id){setEdit(null);setF(blank())}setNotice('Product deleted.')}catch{setNotice('Could not delete product.')}};
