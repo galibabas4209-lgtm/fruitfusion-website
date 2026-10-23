@@ -15,7 +15,7 @@ const ownerRoute=/^\/(owner|admin)\/?$/i.test(window.location.pathname);
 const fade={hidden:{opacity:0,y:28},show:{opacity:1,y:0,transition:{duration:.55,ease:'easeOut'}}};
 
 export default function App(){
- const[ps,setPs]=useState<P[]>(seed),[cart,setCart]=useState<P[]>([]),[toast,setToast]=useState(''),[drawer,setDrawer]=useState(false),[owner,setOwner]=useState<any>(null),[authChecked,setAuthChecked]=useState(false),[admin,setAdmin]=useState(false),[edit,setEdit]=useState<P|null>(null),[mobile,setMobile]=useState(false),[delivery,setDelivery]=useState<'pickup'|'home'>('pickup'),[deliveryDetails,setDeliveryDetails]=useState({name:'',phone:'',address:'',landmark:'',note:''});
+ const[ps,setPs]=useState<P[]>(seed),[cart,setCart]=useState<P[]>([]),[toast,setToast]=useState(''),[drawer,setDrawer]=useState(false),[owner,setOwner]=useState<any>(null),[authChecked,setAuthChecked]=useState(false),[admin,setAdmin]=useState(false),[edit,setEdit]=useState<P|null>(null),[mobile,setMobile]=useState(false),[delivery,setDelivery]=useState<'pickup'|'home'>('pickup'),[deliveryDetails,setDeliveryDetails]=useState({name:'',phone:'',email:'',address:'',landmark:'',note:''}),[paying,setPaying]=useState(false);
  useEffect(() => {
   if (!supabaseConfigured) { setAuthChecked(true); return; }
 
@@ -65,12 +65,63 @@ export default function App(){
 
   checkOwner();
 }, []);
+ useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+
+  // Paystack returns customers with ?reference=… (and ?trxref=…) after payment
+  const reference = params.get("reference") || params.get("trxref");
+  if (!reference || !supabaseConfigured) return;
+
+  let cancelled = false;
+
+  async function verifyPayment() {
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "paystack-verify",
+        { body: { reference } },
+      );
+
+      if (error) throw error;
+
+      if (!data?.verified) {
+        throw new Error(
+          data?.message || data?.error || "Payment is not verified.",
+        );
+      }
+
+      if (!cancelled) {
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname,
+        );
+        setCart([]);
+        setDrawer(false);
+        window.alert("Payment successful! Your order is confirmed.");
+      }
+    } catch (error) {
+      console.error("Payment verification failed:", error);
+
+      if (!cancelled) {
+        window.alert(
+          "We couldn't confirm your payment yet. Please contact Fruitfusion before trying to pay again.",
+        );
+      }
+    }
+  }
+
+  void verifyPayment();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
  const add=(p:P)=>{const already=cart.filter(x=>x.id===p.id).length;if((p.stock??10)<=already){setToast(p.name+' is out of stock or at its available limit.');setTimeout(()=>setToast(''),2200);return}setCart(c=>[...c,p]);setToast(p.name+' added to your order');setTimeout(()=>setToast(''),2200)};
  const total=cart.reduce((s,p)=>s+p.price,0);
  const deliveryFee=delivery==='home'?1000:0;
  const grandTotal=total+deliveryFee;
- const deliveryReady=delivery==='pickup'||(deliveryDetails.name.trim()!==''&&deliveryDetails.phone.trim()!==''&&deliveryDetails.address.trim()!=='');
- const whatsappText='Hi Fruit Fusion, I would like to order: '+cart.map(p=>p.name).join(', ')+' | Subtotal: '+money(total)+' | Delivery: '+(delivery==='home'?money(deliveryFee):'Pickup')+' | Total: '+money(grandTotal)+(delivery==='home'?' | Customer: '+deliveryDetails.name+' | Phone: '+deliveryDetails.phone+' | Address: '+deliveryDetails.address+' | Landmark: '+deliveryDetails.landmark+' | Note: '+deliveryDetails.note:'');
+ const deliveryReady=deliveryDetails.name.trim()!==''&&deliveryDetails.phone.trim()!==''&&/^\S+@\S+\.\S+$/.test(deliveryDetails.email.trim())&&(delivery==='pickup'||deliveryDetails.address.trim()!=='');
+
  
 
 const go = (id: string) => {
@@ -159,18 +210,21 @@ setTimeout(() => setToast(''), 2500);
   <footer className="bg-[#18221B] px-4 py-12 text-white sm:px-6 lg:px-8"><div className="mx-auto grid max-w-7xl gap-10 sm:grid-cols-2 lg:grid-cols-4"><div className="sm:col-span-2"><img src="/resources/logo.jpeg" alt="Fruit Fusion" className="h-16 w-36 rounded-xl bg-white object-contain p-1"/><p className="mt-4 max-w-sm text-slate-400">Fresh yoghurt & parfaits made with love in Abule Egba, Lagos.</p></div><div><h4 className="font-black">Find us</h4><div className="mt-4 grid gap-3 text-sm text-slate-400"><span className="flex gap-2"><MapPin size={16}/>21 Ifelodun St, off Sunny Balogun, Abule Egba, Lagos 100001</span><a href="tel:+2348050639359" className="flex gap-2"><MessageCircle size={16}/>0805 063 9359</a><span className="flex gap-2"><Clock size={16}/>Open · Closes 7:30 PM</span></div></div><div><h4 className="font-black">Quick links</h4><div className="mt-4 grid gap-3 text-sm text-slate-400"><button className="text-left" onClick={()=>go('menu')}>Menu</button><button className="text-left" onClick={()=>go('about')}>Our story</button><a href="https://www.instagram.com/" className="flex gap-2"><Instagram size={16}/>Instagram</a></div></div></div><div className="mx-auto mt-10 flex max-w-7xl flex-col gap-4 border-t border-white/10 pt-6 text-xs text-slate-500 sm:flex-row sm:justify-between"><span>© 2026 Fruit Fusion. All rights reserved.</span></div></footer>
 
   <AnimatePresence>{toast&&<motion.div initial={{opacity:0,y:20,scale:.95}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:20}} className="fixed bottom-5 left-1/2 z-[90] -translate-x-1/2 rounded-full bg-[#18221B] px-5 py-3 text-sm font-black text-white shadow-2xl"><span className="mr-2 text-green-400">✓</span>{toast}</motion.div>}</AnimatePresence>
-  <AnimatePresence>{drawer&&<><motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={()=>setDrawer(false)} className="fixed inset-0 z-[60] bg-black/50"/><motion.aside initial={{x:'100%'}} animate={{x:0}} exit={{x:'100%'}} transition={{type:'spring',damping:28}} className="fixed right-0 top-0 z-[61] flex h-full w-full max-w-md flex-col bg-white p-6 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-3xl font-black">Your order</h2><button onClick={()=>setDrawer(false)} className="rounded-full border p-2"><X size={18}/></button></div><div className="mt-6 flex-1 overflow-auto">{cart.length===0?<div className="py-24 text-center text-slate-400"><ShoppingBag className="mx-auto" size={40}/><p className="mt-4 font-bold">Your order is empty.</p><button onClick={()=>{setDrawer(false);go('menu')}} className="mt-5 rounded-full bg-green-500 px-5 py-3 font-black text-white">Browse menu</button></div>:<div className="grid gap-3">{cart.map((p,i)=><div key={i} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3"><img src={p.image} alt="" className="h-16 w-16 rounded-xl object-cover"/><div className="flex-1"><b>{p.name}</b><p className="text-sm text-slate-500">{money(p.price)}</p></div><button onClick={()=>setCart(c=>c.filter((_,j)=>j!==i))} className="rounded-full border p-2"><Minus size={14}/></button></div>)}</div>}</div>{cart.length>0&&<div className="border-t pt-5"><h3 className="mb-3 text-lg font-black">How would you like to receive your order?</h3><div className="grid grid-cols-2 gap-2"><button type="button" onClick={()=>setDelivery('pickup')} className={'rounded-xl border-2 p-3 text-sm font-black '+(delivery==='pickup'?'border-green-500 bg-green-50 text-green-700':'border-slate-200')}>🏪 Pickup</button><button type="button" onClick={()=>setDelivery('home')} className={'rounded-xl border-2 p-3 text-sm font-black '+(delivery==='home'?'border-green-500 bg-green-50 text-green-700':'border-slate-200')}>🛵 Home delivery</button></div>{delivery==='home'&&<div className="mt-4 grid gap-2"><p className="text-sm font-bold text-slate-500">Delivery fee: {money(deliveryFee)}</p><input value={deliveryDetails.name} onChange={e=>setDeliveryDetails({...deliveryDetails,name:e.target.value})} required placeholder="Full name" className="rounded-xl border p-3"/><input value={deliveryDetails.phone} onChange={e=>setDeliveryDetails({...deliveryDetails,phone:e.target.value})} required placeholder="Phone number" className="rounded-xl border p-3"/><textarea value={deliveryDetails.address} onChange={e=>setDeliveryDetails({...deliveryDetails,address:e.target.value})} required placeholder="Full delivery address" rows={2} className="rounded-xl border p-3"/><input value={deliveryDetails.landmark} onChange={e=>setDeliveryDetails({...deliveryDetails,landmark:e.target.value})} placeholder="Nearest landmark (optional)" className="rounded-xl border p-3"/><textarea value={deliveryDetails.note} onChange={e=>setDeliveryDetails({...deliveryDetails,note:e.target.value})} placeholder="Delivery note (optional)" rows={2} className="rounded-xl border p-3"/></div>}<div className="my-4 flex justify-between text-lg font-black"><span>Total</span><span className="text-orange-500">{money(grandTotal)}</span></div><a href="#" onClick={async e=>{e.preventDefault();if(!deliveryReady){setToast('Please complete your delivery name, phone and address.');setTimeout(()=>setToast(''),2500);return}try{const grouped=cart.reduce((a,p)=>{const found=a.find(x=>x.id===p.id);if(found)found.qty+=1;else a.push({id:p.id,qty:1});return a},[] as Array<{id:string;qty:number}>);
+  <AnimatePresence>{drawer&&<><motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={()=>setDrawer(false)} className="fixed inset-0 z-[60] bg-black/50"/><motion.aside initial={{x:'100%'}} animate={{x:0}} exit={{x:'100%'}} transition={{type:'spring',damping:28}} className="fixed right-0 top-0 z-[61] flex h-full w-full max-w-md flex-col bg-white p-6 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-3xl font-black">Your order</h2><button onClick={()=>setDrawer(false)} className="rounded-full border p-2"><X size={18}/></button></div><div className="mt-6 flex-1 overflow-auto">{cart.length===0?<div className="py-24 text-center text-slate-400"><ShoppingBag className="mx-auto" size={40}/><p className="mt-4 font-bold">Your order is empty.</p><button onClick={()=>{setDrawer(false);go('menu')}} className="mt-5 rounded-full bg-green-500 px-5 py-3 font-black text-white">Browse menu</button></div>:<div className="grid gap-3">{cart.map((p,i)=><div key={i} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3"><img src={p.image} alt="" className="h-16 w-16 rounded-xl object-cover"/><div className="flex-1"><b>{p.name}</b><p className="text-sm text-slate-500">{money(p.price)}</p></div><button onClick={()=>setCart(c=>c.filter((_,j)=>j!==i))} className="rounded-full border p-2"><Minus size={14}/></button></div>)}</div>}</div>{cart.length>0&&<div className="border-t pt-5"><h3 className="mb-3 text-lg font-black">How would you like to receive your order?</h3><div className="grid grid-cols-2 gap-2"><button type="button" onClick={()=>setDelivery('pickup')} className={'rounded-xl border-2 p-3 text-sm font-black '+(delivery==='pickup'?'border-green-500 bg-green-50 text-green-700':'border-slate-200')}>🏪 Pickup</button><button type="button" onClick={()=>setDelivery('home')} className={'rounded-xl border-2 p-3 text-sm font-black '+(delivery==='home'?'border-green-500 bg-green-50 text-green-700':'border-slate-200')}>🛵 Home delivery</button></div><div className="mt-4 grid gap-2"><input value={deliveryDetails.name} onChange={e=>setDeliveryDetails({...deliveryDetails,name:e.target.value})} required placeholder="Full name" className="rounded-xl border p-3"/><input value={deliveryDetails.phone} onChange={e=>setDeliveryDetails({...deliveryDetails,phone:e.target.value})} required type="tel" placeholder="Phone number" className="rounded-xl border p-3"/><input value={deliveryDetails.email} onChange={e=>setDeliveryDetails({...deliveryDetails,email:e.target.value})} required type="email" placeholder="Email (for your payment receipt)" className="rounded-xl border p-3"/></div>{delivery==='home'&&<div className="mt-2 grid gap-2"><p className="text-sm font-bold text-slate-500">Delivery fee: {money(deliveryFee)}</p><textarea value={deliveryDetails.address} onChange={e=>setDeliveryDetails({...deliveryDetails,address:e.target.value})} required placeholder="Full delivery address" rows={2} className="rounded-xl border p-3"/><input value={deliveryDetails.landmark} onChange={e=>setDeliveryDetails({...deliveryDetails,landmark:e.target.value})} placeholder="Nearest landmark (optional)" className="rounded-xl border p-3"/><textarea value={deliveryDetails.note} onChange={e=>setDeliveryDetails({...deliveryDetails,note:e.target.value})} placeholder="Delivery note (optional)" rows={2} className="rounded-xl border p-3"/></div>}<div className="my-4 flex justify-between text-lg font-black"><span>Total</span><span className="text-orange-500">{money(grandTotal)}</span></div><button type="button" disabled={paying} onClick={async()=>{if(!deliveryReady){setToast(delivery==='home'?'Please enter your name, phone, email and delivery address.':'Please enter your name, phone and email.');setTimeout(()=>setToast(''),2500);return}if(!supabaseConfigured){setToast('Online payment is not available right now. Please try again later.');setTimeout(()=>setToast(''),3000);return}setPaying(true);try{const grouped=cart.reduce((a,p)=>{const found=a.find(x=>x.id===p.id);if(found)found.qty+=1;else a.push({id:p.id,qty:1});return a},[] as Array<{id:string;qty:number}>);
 const { data, error } = await supabase.functions.invoke(
   "paystack-initialize",
   {
     body: {
-      customer_name: deliveryDetails.name,
-      customer_phone: deliveryDetails.phone,
-      customer_email: deliveryDetails.email,
+      customer_name: deliveryDetails.name.trim(),
+      customer_phone: deliveryDetails.phone.trim(),
+      customer_email: deliveryDetails.email.trim(),
       fulfillment_method: delivery === "home" ? "delivery" : "pickup",
       delivery_address:
         delivery === "home" ? deliveryDetails.address : null,
-      delivery_notes: deliveryDetails.notes || null,
+      delivery_notes:
+        [deliveryDetails.landmark && "Landmark: " + deliveryDetails.landmark, deliveryDetails.note]
+          .filter(Boolean)
+          .join(" | ") || null,
       items: grouped.map((item) => ({
         product_id: item.id,
         quantity: item.qty,
@@ -187,10 +241,7 @@ if (!data?.authorization_url || !data?.reference) {
 
 window.location.href = data.authorization_url;
 return;
-  })),
-});
-
-if (error) throw error;setDrawer(false);window.location.href='https://wa.me/2348050639359?text='+encodeURIComponent(whatsappText)}catch{setToast('Could not save your order. Please try again.');setTimeout(()=>setToast(''),3000)}}} className={'block rounded-2xl py-4 text-center font-black text-white '+(deliveryReady?'bg-green-500':'bg-slate-300')}>Checkout on WhatsApp</a></div>}</motion.aside></>}</AnimatePresence>
+}catch(err){console.error('Payment could not start:',err);setPaying(false);setToast('Could not start payment. Please try again.');setTimeout(()=>setToast(''),3000)}}} className={'block w-full rounded-2xl py-4 text-center font-black text-white disabled:opacity-60 '+(deliveryReady?'bg-green-500':'bg-slate-300')}>{paying?'Redirecting to payment…':'Make payment'}</button></div>}</motion.aside></>}</AnimatePresence>
   {ownerRoute&&authChecked&&!owner&&<OwnerLogin onLogin={u=>{setOwner(u);setAdmin(true)}}/>}
   {admin&&<Admin owner={owner} products={ps} setProducts={setPs} edit={edit} setEdit={setEdit} close={()=>{setAdmin(false);if(ownerRoute)window.location.assign('/')}} logout={async()=>{await supabase.auth.signOut();setOwner(null);setAdmin(false);window.location.assign('/')}}/>}
  </div>
@@ -219,56 +270,6 @@ function Admin({owner,products,setProducts,edit,setEdit,close,logout}:{owner:any
  const[orders,setOrders]=useState<any[]>([]);
  const[notice,setNotice]=useState('');
  useEffect(()=>setF(edit||blank()),[edit]);
- useEffect(() => {
-  const params = new URLSearchParams(window.location.search);
-
-  if (params.get("payment") !== "callback") return;
-
-  const reference = params.get("reference");
-  if (!reference) return;
-
-  let cancelled = false;
-
-  async function verifyPayment() {
-    try {
-      const { data, error } = await supabase.functions.invoke(
-        "paystack-verify",
-        { body: { reference } },
-      );
-
-      if (error) throw error;
-
-      if (!data?.verified) {
-        throw new Error(
-          data?.message || data?.error || "Payment is not verified.",
-        );
-      }
-
-      if (!cancelled) {
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname,
-        );
-        window.alert("Payment successful! Your order is confirmed.");
-      }
-    } catch (error) {
-      console.error("Payment verification failed:", error);
-
-      if (!cancelled) {
-        window.alert(
-          "We couldn't confirm your payment yet. Please contact Fruitfusion before trying to pay again.",
-        );
-      }
-    }
-  }
-
-  void verifyPayment();
-
-  return () => {
-    cancelled = true;
-  };
-}, []);
 async function refreshOrders() {
   const { data, error } = await supabase
     .from('orders')
