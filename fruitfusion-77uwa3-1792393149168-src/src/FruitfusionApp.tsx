@@ -160,18 +160,33 @@ setTimeout(() => setToast(''), 2500);
 
   <AnimatePresence>{toast&&<motion.div initial={{opacity:0,y:20,scale:.95}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:20}} className="fixed bottom-5 left-1/2 z-[90] -translate-x-1/2 rounded-full bg-[#18221B] px-5 py-3 text-sm font-black text-white shadow-2xl"><span className="mr-2 text-green-400">✓</span>{toast}</motion.div>}</AnimatePresence>
   <AnimatePresence>{drawer&&<><motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={()=>setDrawer(false)} className="fixed inset-0 z-[60] bg-black/50"/><motion.aside initial={{x:'100%'}} animate={{x:0}} exit={{x:'100%'}} transition={{type:'spring',damping:28}} className="fixed right-0 top-0 z-[61] flex h-full w-full max-w-md flex-col bg-white p-6 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-3xl font-black">Your order</h2><button onClick={()=>setDrawer(false)} className="rounded-full border p-2"><X size={18}/></button></div><div className="mt-6 flex-1 overflow-auto">{cart.length===0?<div className="py-24 text-center text-slate-400"><ShoppingBag className="mx-auto" size={40}/><p className="mt-4 font-bold">Your order is empty.</p><button onClick={()=>{setDrawer(false);go('menu')}} className="mt-5 rounded-full bg-green-500 px-5 py-3 font-black text-white">Browse menu</button></div>:<div className="grid gap-3">{cart.map((p,i)=><div key={i} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3"><img src={p.image} alt="" className="h-16 w-16 rounded-xl object-cover"/><div className="flex-1"><b>{p.name}</b><p className="text-sm text-slate-500">{money(p.price)}</p></div><button onClick={()=>setCart(c=>c.filter((_,j)=>j!==i))} className="rounded-full border p-2"><Minus size={14}/></button></div>)}</div>}</div>{cart.length>0&&<div className="border-t pt-5"><h3 className="mb-3 text-lg font-black">How would you like to receive your order?</h3><div className="grid grid-cols-2 gap-2"><button type="button" onClick={()=>setDelivery('pickup')} className={'rounded-xl border-2 p-3 text-sm font-black '+(delivery==='pickup'?'border-green-500 bg-green-50 text-green-700':'border-slate-200')}>🏪 Pickup</button><button type="button" onClick={()=>setDelivery('home')} className={'rounded-xl border-2 p-3 text-sm font-black '+(delivery==='home'?'border-green-500 bg-green-50 text-green-700':'border-slate-200')}>🛵 Home delivery</button></div>{delivery==='home'&&<div className="mt-4 grid gap-2"><p className="text-sm font-bold text-slate-500">Delivery fee: {money(deliveryFee)}</p><input value={deliveryDetails.name} onChange={e=>setDeliveryDetails({...deliveryDetails,name:e.target.value})} required placeholder="Full name" className="rounded-xl border p-3"/><input value={deliveryDetails.phone} onChange={e=>setDeliveryDetails({...deliveryDetails,phone:e.target.value})} required placeholder="Phone number" className="rounded-xl border p-3"/><textarea value={deliveryDetails.address} onChange={e=>setDeliveryDetails({...deliveryDetails,address:e.target.value})} required placeholder="Full delivery address" rows={2} className="rounded-xl border p-3"/><input value={deliveryDetails.landmark} onChange={e=>setDeliveryDetails({...deliveryDetails,landmark:e.target.value})} placeholder="Nearest landmark (optional)" className="rounded-xl border p-3"/><textarea value={deliveryDetails.note} onChange={e=>setDeliveryDetails({...deliveryDetails,note:e.target.value})} placeholder="Delivery note (optional)" rows={2} className="rounded-xl border p-3"/></div>}<div className="my-4 flex justify-between text-lg font-black"><span>Total</span><span className="text-orange-500">{money(grandTotal)}</span></div><a href="#" onClick={async e=>{e.preventDefault();if(!deliveryReady){setToast('Please complete your delivery name, phone and address.');setTimeout(()=>setToast(''),2500);return}try{const grouped=cart.reduce((a,p)=>{const found=a.find(x=>x.id===p.id);if(found)found.qty+=1;else a.push({id:p.id,qty:1});return a},[] as Array<{id:string;qty:number}>);
-const { data: orderId, error } = await supabase.rpc('create_order', {
-  p_customer_name: String(deliveryDetails.name || '').trim(),
-  p_customer_phone: String(deliveryDetails.phone || '').trim(),
-  p_customer_email: deliveryDetails.email || null,
-  p_fulfillment_method: delivery === 'home' ? 'delivery' : 'pickup',
-  p_delivery_address: delivery === 'home'
-    ? String(deliveryDetails.address || '').trim()
-    : null,
-  p_delivery_notes: deliveryDetails.note || null,
-  p_items: grouped.map((item) => ({
-    product_id: item.id,
-    quantity: item.qty,
+const { data, error } = await supabase.functions.invoke(
+  "paystack-initialize",
+  {
+    body: {
+      customer_name: deliveryDetails.name,
+      customer_phone: deliveryDetails.phone,
+      customer_email: deliveryDetails.email,
+      fulfillment_method: delivery === "home" ? "delivery" : "pickup",
+      delivery_address:
+        delivery === "home" ? deliveryDetails.address : null,
+      delivery_notes: deliveryDetails.notes || null,
+      items: grouped.map((item) => ({
+        product_id: item.id,
+        quantity: item.qty,
+      })),
+    },
+  },
+);
+
+if (error) throw error;
+
+if (!data?.authorization_url || !data?.reference) {
+  throw new Error(data?.error || "Could not start Paystack checkout.");
+}
+
+window.location.href = data.authorization_url;
+return;
   })),
 });
 
@@ -204,7 +219,56 @@ function Admin({owner,products,setProducts,edit,setEdit,close,logout}:{owner:any
  const[orders,setOrders]=useState<any[]>([]);
  const[notice,setNotice]=useState('');
  useEffect(()=>setF(edit||blank()),[edit]);
- 
+ useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+
+  if (params.get("payment") !== "callback") return;
+
+  const reference = params.get("reference");
+  if (!reference) return;
+
+  let cancelled = false;
+
+  async function verifyPayment() {
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "paystack-verify",
+        { body: { reference } },
+      );
+
+      if (error) throw error;
+
+      if (!data?.verified) {
+        throw new Error(
+          data?.message || data?.error || "Payment is not verified.",
+        );
+      }
+
+      if (!cancelled) {
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname,
+        );
+        window.alert("Payment successful! Your order is confirmed.");
+      }
+    } catch (error) {
+      console.error("Payment verification failed:", error);
+
+      if (!cancelled) {
+        window.alert(
+          "We couldn't confirm your payment yet. Please contact Fruitfusion before trying to pay again.",
+        );
+      }
+    }
+  }
+
+  void verifyPayment();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
 async function refreshOrders() {
   const { data, error } = await supabase
     .from('orders')
