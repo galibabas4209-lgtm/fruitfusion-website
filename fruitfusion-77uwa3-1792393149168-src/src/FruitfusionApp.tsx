@@ -269,6 +269,37 @@ function Admin({owner,products,setProducts,edit,setEdit,close,logout}:{owner:any
  const[tab,setTab]=useState<'products'|'orders'>('products');
  const[orders,setOrders]=useState<any[]>([]);
  const[notice,setNotice]=useState('');
+ 
+const [orderSearch, setOrderSearch] = useState('');
+const [paymentFilter, setPaymentFilter] = useState('all');
+const [statusFilter, setStatusFilter] = useState('all');
+const [expandedOrders, setExpandedOrders] = useState<string[]>([]);
+const [ordersLoading, setOrdersLoading] = useState(false);
+
+const filteredOrders = orders.filter((o) => {
+  const term = orderSearch.trim().toLowerCase();
+
+  const matchesSearch =
+    !term ||
+    [
+      o.id,
+      o.reference,
+      o.deliveryDetails?.name,
+      o.deliveryDetails?.phone,
+      o.deliveryDetails?.email,
+    ].some((value) => String(value ?? '').toLowerCase().includes(term));
+
+  const matchesPayment =
+    paymentFilter === 'all' ||
+    String(o.paymentStatus).toLowerCase() === paymentFilter;
+
+  const matchesStatus =
+    statusFilter === 'all' ||
+    String(o.status).toLowerCase() === statusFilter;
+
+  return matchesSearch && matchesPayment && matchesStatus;
+});
+
  useEffect(()=>setF(edit||blank()),[edit]);
 async function refreshOrders() {
   const { data, error } = await supabase
@@ -499,6 +530,7 @@ const remove = async (p: P) => {
 
 
  
+
 const status = async (id: string, value: string) => {
   const statusMap: Record<string, string> = {
     New: 'pending',
@@ -508,6 +540,36 @@ const status = async (id: string, value: string) => {
     Completed: 'completed',
     Cancelled: 'cancelled',
   };
+
+  const order = orders.find((o) => o.id === id);
+
+  if (!order) return;
+
+  if (
+    value !== 'Cancelled' &&
+    value !== 'New' &&
+    String(order.paymentStatus).toLowerCase() !== 'paid'
+  ) {
+    setNotice('Only paid orders can move to fulfilment.');
+    return;
+  }
+
+  try {
+    const { error } = await supabase
+      .from('orders')
+      .update({ status: statusMap[value] })
+      .eq('id', id);
+
+    if (error) throw error;
+
+    await refreshOrders();
+    setNotice('Order status updated successfully.');
+  } catch (error) {
+    console.error('Order status update failed:', error);
+    setNotice('Could not update order status. Please try again.');
+  }
+};
+
 
   try {
     const { error } = await supabase
