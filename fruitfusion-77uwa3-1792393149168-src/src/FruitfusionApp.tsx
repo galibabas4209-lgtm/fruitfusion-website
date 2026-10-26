@@ -295,7 +295,7 @@ const filteredOrders = orders.filter((o) => {
 
   const matchesStatus =
     statusFilter === 'all' ||
-    String(o.status).toLowerCase() === statusFilter;
+    String(o.status).toLowerCase() === statusFilter.toLowerCase();
 
   return matchesSearch && matchesPayment && matchesStatus;
 });
