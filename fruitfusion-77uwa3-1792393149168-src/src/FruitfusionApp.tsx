@@ -624,6 +624,207 @@ const status = async (id: string, value: string) => {
 >
   Refresh
 </button>
-</div>{products.map(p=><article key={p.id} className="flex gap-3 rounded-2xl border p-3"><img src={p.image} alt={p.name} className="h-16 w-16 shrink-0 rounded-xl bg-slate-100 object-cover"/><div className="min-w-0 flex-1"><b className="block truncate">{p.name}</b><p className="mt-1 text-sm text-slate-500">{money(p.price)} · Stock: {p.stock??0}</p><p className="text-xs text-slate-400">{p.available?'Visible on menu':'Hidden from menu'}</p></div><div className="flex gap-1"><button onClick={()=>{setEdit(p);setF(p)}} className="rounded-full border p-2" aria-label={'Edit '+p.name}><Pencil size={15}/></button><button onClick={()=>remove(p)} className="rounded-full border p-2 text-red-500" aria-label={'Delete '+p.name}><Trash2 size={15}/></button></div></article>)}</div></div>:<div className="mt-5 space-y-3">{orders.length===0?<div className="rounded-2xl bg-slate-50 p-8 text-center text-slate-500">No saved orders yet. Orders placed through website checkout will appear here.</div>:orders.map(o=><article key={o.id} className="rounded-2xl border p-4 sm:p-5"><div className="flex flex-col justify-between gap-3 sm:flex-row"><div><p className="font-black">Order #{String(o.id).slice(0,8)}</p><p className="mt-1 text-sm text-slate-500">{new Date(o.createdAt).toLocaleString()}</p><p className="mt-2 text-sm font-bold">{o.delivery==='home'?'Home delivery':'Pickup'} · {money(o.total)} <span className={'ml-1 rounded-full px-2 py-0.5 text-xs font-black uppercase '+(o.paymentStatus==='paid'?'bg-green-100 text-green-700':'bg-yellow-100 text-yellow-800')}>{o.paymentStatus==='paid'?'Paid':'Payment '+o.paymentStatus}</span></p>{o.deliveryDetails?.name&&<p className="mt-1 text-sm text-slate-600">{o.deliveryDetails.name} · {o.deliveryDetails.phone}{o.deliveryDetails.email&&<> · {o.deliveryDetails.email}</>}{o.deliveryDetails.address&&<><br/>{o.deliveryDetails.address}</>}{o.deliveryDetails.note&&<><br/>{o.deliveryDetails.note}</>}</p>}{o.reference&&<p className="mt-1 text-xs text-slate-400">Ref: {o.reference}</p>}</div><select value={o.status||'New'} onChange={e=>status(o.id,e.target.value)} className="h-fit rounded-xl border p-3 text-sm font-bold"><option>New</option><option>Confirmed</option><option>Preparing</option><option>Ready for delivery</option><option>Completed</option><option>Cancelled</option></select></div><div className="mt-4 border-t pt-3 text-sm text-slate-600">{(o.items||[]).map((i:any,n:number)=><span key={n} className="mr-3 inline-block">{i.name} × {i.qty}</span>)}</div></article>)}</div>}
- </div></div>
-}
+</div>{products.map(p=><article key={p.id} className="flex gap-3 rounded-2xl border p-3"><img src={p.image} alt={p.name} className="h-16 w-16 shrink-0 rounded-xl bg-slate-100 object-cover"/><div className="min-w-0 flex-1"><b className="block truncate">{p.name}</b><p className="mt-1 text-sm text-slate-500">{money(p.price)} · Stock: {p.stock??0}</p><p className="text-xs text-slate-400">{p.available?'Visible on menu':'Hidden from menu'}</p></div><div className="flex gap-1"><button onClick={()=>{setEdit(p);setF(p)}} className="rounded-full border p-2" aria-label={'Edit '+p.name}><Pencil size={15}/></button><button onClick={()=>remove(p)} className="rounded-full border p-2 text-red-500" aria-label={'Delete '+p.name}><Trash2 size={15}/></button></div></article>)}</div></div>:
+<div className="mt-5 space-y-4">
+  <div className="grid gap-3 sm:grid-cols-3">
+    <input
+      value={orderSearch}
+      onChange={e => setOrderSearch(e.target.value)}
+      placeholder="Search name, phone, email, order ID..."
+      className="rounded-xl border p-3 text-sm sm:col-span-3"
+    />
+
+    <select
+      value={paymentFilter}
+      onChange={e => setPaymentFilter(e.target.value)}
+      className="rounded-xl border p-3 text-sm"
+    >
+      <option value="all">All payment statuses</option>
+      <option value="paid">Paid</option>
+      <option value="pending">Pending</option>
+      <option value="failed">Failed</option>
+    </select>
+
+    <select
+      value={statusFilter}
+      onChange={e => setStatusFilter(e.target.value)}
+      className="rounded-xl border p-3 text-sm"
+    >
+      <option value="all">All order statuses</option>
+      <option value="New">New</option>
+      <option value="Confirmed">Confirmed</option>
+      <option value="Preparing">Preparing</option>
+      <option value="Ready for delivery">Ready for delivery</option>
+      <option value="Completed">Completed</option>
+      <option value="Cancelled">Cancelled</option>
+    </select>
+
+    <button
+      type="button"
+      onClick={async () => {
+        setOrdersLoading(true);
+        try {
+          await refreshOrders();
+          setNotice('Orders refreshed.');
+        } catch (error) {
+          console.error(error);
+          setNotice('Could not refresh orders.');
+        } finally {
+          setOrdersLoading(false);
+        }
+      }}
+      disabled={ordersLoading}
+      className="rounded-xl border p-3 text-sm font-bold disabled:opacity-50"
+    >
+      {ordersLoading ? 'Refreshing...' : 'Refresh orders'}
+    </button>
+  </div>
+
+  {notice && (
+    <p role="status" className="text-sm text-slate-600">
+      {notice}
+    </p>
+  )}
+
+  <p className="text-sm text-slate-500">
+    Showing {filteredOrders.length} of {orders.length} orders
+  </p>
+
+  {filteredOrders.length === 0 ? (
+    <div className="rounded-2xl bg-slate-50 p-8 text-center text-slate-500">
+      {orders.length === 0
+        ? 'No saved orders yet. Website orders will appear here.'
+        : 'No orders match your search or filters.'}
+    </div>
+  ) : (
+    filteredOrders.map(o => {
+      const isExpanded = expandedOrders.includes(o.id);
+      const payment = String(o.paymentStatus || 'pending').toLowerCase();
+
+      return (
+        <article key={o.id} className="rounded-2xl border p-4 sm:p-5">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row">
+            <div className="min-w-0">
+              <p className="font-black">
+                Order #{String(o.id).slice(0, 8)}
+              </p>
+
+              <p className="mt-1 text-sm text-slate-500">
+                {new Date(o.createdAt).toLocaleString()}
+              </p>
+
+              <p className="mt-2 text-sm font-bold">
+                {o.delivery === 'home' ? 'Home delivery' : 'Pickup'}
+                {' · '}
+                {money(o.total)}
+              </p>
+
+              <div className="mt-2 flex flex-wrap gap-2">
+                <span className={
+                  'rounded-full px-2 py-1 text-xs font-black uppercase ' +
+                  (payment === 'paid'
+                    ? 'bg-green-100 text-green-700'
+                    : payment === 'failed'
+                    ? 'bg-red-100 text-red-700'
+                    : 'bg-yellow-100 text-yellow-800')
+                }>
+                  {payment}
+                </span>
+
+                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold">
+                  {o.status || 'New'}
+                </span>
+              </div>
+
+              {o.deliveryDetails?.name && (
+                <p className="mt-2 break-words text-sm text-slate-600">
+                  {o.deliveryDetails.name}
+                  {' · '}
+                  {o.deliveryDetails.phone}
+                  {o.deliveryDetails.email && <> · {o.deliveryDetails.email}</>}
+                  {o.deliveryDetails.address && (
+                    <>
+                      <br />
+                      {o.deliveryDetails.address}
+                    </>
+                  )}
+                  {o.deliveryDetails.note && (
+                    <>
+                      <br />
+                      Note: {o.deliveryDetails.note}
+                    </>
+                  )}
+                </p>
+              )}
+
+              {o.reference && (
+                <p className="mt-1 break-all text-xs text-slate-400">
+                  Payment reference: {o.reference}
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2 sm:min-w-48">
+              <label className="text-xs font-bold text-slate-500">
+                Update order status
+              </label>
+
+              <select
+                value={o.status || 'New'}
+                onChange={e => status(o.id, e.target.value)}
+                className="h-fit rounded-xl border p-3 text-sm font-bold"
+              >
+                <option>New</option>
+                <option>Confirmed</option>
+                <option>Preparing</option>
+                <option>Ready for delivery</option>
+                <option>Completed</option>
+                <option>Cancelled</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setExpandedOrders(previous =>
+                    previous.includes(o.id)
+                      ? previous.filter(id => id !== o.id)
+                      : [...previous, o.id]
+                  )
+                }
+                className="rounded-xl border p-3 text-sm font-bold"
+              >
+                {isExpanded ? 'Hide order items' : 'View order items'}
+              </button>
+            </div>
+          </div>
+
+          {isExpanded && (
+            <div className="mt-4 border-t pt-3">
+              <h4 className="mb-2 text-sm font-black">Order items</h4>
+
+              {(o.items || []).map((item: any, index: number) => (
+                <div
+                  key={index}
+                  className="flex justify-between gap-3 border-b py-2 text-sm last:border-0"
+                >
+                  <span>
+                    {item.name} × {item.qty}
+                  </span>
+                  <span className="shrink-0 font-bold">
+                    {money(item.subtotal ?? item.price * item.qty)}
+                  </span>
+                </div>
+              ))}
+
+              <div className="mt-3 flex justify-between font-black">
+                <span>Order total</span>
+                <span>{money(o.total)}</span>
+              </div>
+            </div>
+          )}
+        </article>
+      );
+    })
+  )}
+</div>
+
