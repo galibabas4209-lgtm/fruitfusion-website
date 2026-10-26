@@ -571,22 +571,6 @@ const status = async (id: string, value: string) => {
 };
 
 
-  try {
-    const { error } = await supabase
-      .from('orders')
-      .update({ status: statusMap[value] || value })
-      .eq('id', id);
-
-    if (error) throw error;
-
-    await refreshOrders();
-    setNotice('Order status updated.');
-  } catch (error) {
-    console.error('Could not update order status:', error);
-    setNotice('Could not update order status.');
-  }
-};
-
  const startNew=()=>{setEdit(null);setF(blank())};
  return <div className="fixed inset-0 z-[100] overflow-auto bg-black/70 p-3 sm:p-5"><div className="mx-auto my-3 max-w-6xl rounded-[2rem] bg-white p-5 shadow-2xl sm:p-8"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-green-600">Private owner area</p><h2 className="mt-1 text-3xl font-black">Fruit Fusion dashboard</h2><p className="mt-1 text-sm text-slate-500">{owner?.email}</p></div><div className="flex gap-2"><button onClick={logout} className="flex items-center gap-2 rounded-full border px-4 py-3 text-sm font-bold"><LogOut size={16}/> Sign out</button><button onClick={close} className="rounded-full border p-3" aria-label="Close dashboard"><X size={16}/></button></div></div>
  <div className="mt-6 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl bg-green-50 p-4"><p className="text-sm font-bold text-green-700">Products</p><p className="mt-1 text-3xl font-black">{products.length}</p></div><div className="rounded-2xl bg-orange-50 p-4"><p className="text-sm font-bold text-orange-700">Orders</p><p className="mt-1 text-3xl font-black">{orders.length}</p></div><div className="rounded-2xl bg-yellow-50 p-4"><p className="text-sm font-bold text-yellow-800">Needs attention</p><p className="mt-1 text-3xl font-black">{orders.filter(o=>!['Completed','Cancelled'].includes(o.status)).length}</p></div></div>
@@ -828,3 +812,6 @@ const status = async (id: string, value: string) => {
   )}
 </div>
 
+}
+ </div></div>
+}
