@@ -2,4 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
-html{scroll-behavior:smooth} body{margin:0;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#fffdf9;background-image:radial-gradient(circle at 8% 12%,rgba(250,204,21,.16),transparent 22%),radial-gradient(circle at 92% 8%,rgba(34,197,94,.14),transparent 25%),radial-gradient(circle at 50% 60%,rgba(249,115,22,.08),transparent 28%)} button,input,textarea{font:inherit} button{cursor:pointer;transition:transform .2s ease,box-shadow .2s ease} button:hover{transform:translateY(-2px)} ::selection{background:#facc15;color:#172554}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background-color:#fff6ec;background-image:radial-gradient(circle at 8% 10%,rgba(250,204,21,.35),transparent 30%),radial-gradient(circle at 92% 6%,rgba(244,114,182,.28),transparent 32%),radial-gradient(circle at 15% 55%,rgba(34,197,94,.22),transparent 30%),radial-gradient(circle at 85% 70%,rgba(249,115,22,.25),transparent 32%),radial-gradient(circle at 50% 100%,rgba(168,85,247,.16),transparent 35%),linear-gradient(160deg,#fff7e6 0%,#ffeef3 35%,#f0fdf4 65%,#fff1e2 100%);background-attachment:fixed}
+button,input,textarea{font:inherit}
+button{cursor:pointer;transition:transform .2s ease,box-shadow .2s ease}
+button:hover{transform:translateY(-2px)}
+::selection{background:#facc15;color:#172554}
+
+/* Floating colour blobs behind the whole page */
+.ff-blobs{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.ff-blobs span{position:absolute;border-radius:9999px;filter:blur(60px);opacity:.45;animation:ff-drift 18s ease-in-out infinite alternate}
+.ff-blobs span:nth-child(1){width:26rem;height:26rem;background:#fde047;top:-6rem;left:-6rem}
+.ff-blobs span:nth-child(2){width:22rem;height:22rem;background:#f9a8d4;top:30%;right:-5rem;animation-duration:22s}
+.ff-blobs span:nth-child(3){width:24rem;height:24rem;background:#86efac;bottom:-6rem;left:20%;animation-duration:26s}
+.ff-blobs span:nth-child(4){width:18rem;height:18rem;background:#fdba74;top:55%;left:-4rem;animation-duration:20s}
+@keyframes ff-drift{0%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,-30px) scale(1.1)}100%{transform:translate(-30px,40px) scale(.95)}}
+
+/* Dotted confetti texture for colourful sections */
+.ff-dots{background-image:radial-gradient(rgba(255,255,255,.55) 1.5px,transparent 1.6px);background-size:22px 22px}
+@media (prefers-reduced-motion:reduce){.ff-blobs span{animation:none}}
