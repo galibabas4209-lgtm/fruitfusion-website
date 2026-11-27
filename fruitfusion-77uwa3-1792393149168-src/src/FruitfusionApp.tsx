@@ -561,12 +561,18 @@ const status = async (id: string, value: string) => {
   }
 
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('orders')
       .update({ status: statusMap[value] })
-      .eq('id', id);
+      .eq('id', id)
+      .select('id, status');
 
     if (error) throw error;
+    if (!data || data.length === 0) {
+      setNotice('The status was not saved. Make sure you are signed in as the owner and the order permissions are set up in Supabase.');
+      return;
+    }
+    setOrders(prev => prev.map(o => (o.id === id ? { ...o, status: value } : o)));
 
     await refreshOrders();
     setNotice('Order status updated successfully.');
